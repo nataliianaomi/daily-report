@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ежедневный отчёт по тегам</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 13px; color: #222; background: #fff; padding: 20px; }
+
+  .toolbar {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 20px; flex-wrap: wrap;
+  }
+  .toolbar label { font-size: 12px; color: #555; }
+  .toolbar input, .toolbar select {
+    padding: 5px 10px; border: 1px solid #ccc; border-radius: 4px;
+    font-size: 13px;
+  }
+  .toolbar button {
+    padding: 5px 14px; border: 1px solid #1a73e8; border-radius: 4px;
+    background: #1a73e8; color: #fff; cursor: pointer; font-size: 13px;
+  }
+  .toolbar button:hover { background: #1557b0; }
+  .toolbar button.secondary {
+    background: #fff; color: #1a73e8;
+  }
+  .toolbar button.secondary:hover { background: #e8f0fe; }
+  .toolbar button.danger {
+    background: #fff; color: #d93025; border-color: #d93025;
+  }
+  .toolbar button.danger:hover { background: #fce8e6; }
+
+  .day-block { margin-bottom: 32px; }
+
+  .day-header {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 16px; font-weight: 600; color: #1a1a1a;
+    margin-bottom: 10px; padding-bottom: 6px;
+    border-bottom: 2px solid #e0e0e0;
+  }
+  .day-header .date-icon {
+    width: 22px; height: 22px; background: #1a73e8;
+    border-radius: 4px; display: flex; align-items: center;
+    justify-content: center; color: #fff; font-size: 10px; font-weight: 700;
+  }
+
+  table {
+    width: 100%; border-collapse: collapse;
+    margin-bottom: 10px;
+  }
+  th {
+    background: #f8f8f8; font-weight: 600; font-size: 12px;
+    padding: 7px 10px; text-align: left;
+    border-bottom: 2px solid #ddd; color: #444;
+    white-space: nowrap;
+  }
+  th:not(:first-child) { text-align: center; }
+
+  td {
+    padding: 6px 10px; border-bottom: 1px solid #eee;
+    text-align: center; transition: background 0.1s;
+  }
+  td:first-child { text-align: left; font-weight: 500; }
+
+  tr.total-row td {
+    font-weight: 700; background: #f0f4ff;
+    border-top: 2px solid #c5cfe8;
+  }
+
+  .col-highlight { background: #fff3cd !important; }
+  .row-highlight td { background: #e8f4fd !important; }
+  tr.total-row.row-highlight td { background: #d0e8f8 !important; }
+
+  .cell-highlight {
+    background: #ffd700 !important;
+    color: #000 !important;
+    font-weight: 700 !important;
+  }
+
+  .zero { color: #bbb; }
+  .nonzero { color: #1a1a1a; font-weight: 500; }
+
+  .providers {
+    font-size: 12px; color: #444;
+    margin-bottom: 6px; padding: 8px 12px;
+    background: #f9f9f9; border-left: 3px solid #1a73e8;
+    border-radius: 0 4px 4px 0;
+  }
+  .providers strong { color: #1a73e8; }
+  .providers span { margin-right: 14px; }
+
+  .add-day-btn {
+    display: block; width: 100%;
+    padding: 10px; border: 2px dashed #ccc;
+    border-radius: 6px; background: none; cursor: pointer;
+    font-size: 13px; color: #888; text-align: center;
+    margin-top: 8px;
+  }
+  .add-day-btn:hover { border-color: #1a73e8; color: #1a73e8; background: #f0f7ff; }
+
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4); z-index: 100;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #fff; border-radius: 8px; padding: 24px;
+    width: 480px; max-width: 95vw; max-height: 90vh;
+    overflow-y: auto; box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+  }
+  .modal h3 { margin-bottom: 16px; font-size: 15px; }
+  .modal label { font-size: 12px; color: #555; display: block; margin-bottom: 3px; }
+  .modal input, .modal select {
+    width: 100%; padding: 6px 10px; border: 1px solid #ccc;
+    border-radius: 4px; margin-bottom: 12px; font-size: 13px;
+  }
+  .modal-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr; gap: 6px; margin-bottom: 6px; align-items: center; }
+  .modal-row input { margin-bottom: 0; }
+  .modal-row .rm { width: 24px; height: 24px; border: none; background: #fee; color: #c00; border-radius: 4px; cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
+  .modal-actions button { padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+  .btn-save { background: #1a73e8; color: #fff; border: none; }
+  .btn-save:hover { background: #1557b0; }
+  .btn-cancel { background: #fff; color: #555; border: 1px solid #ccc; }
+  .btn-cancel:hover { background: #f5f5f5; }
+  .col-headers-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr; gap: 6px; margin-bottom: 4px; }
+  .col-headers-row span { font-size: 11px; color: #888; text-align: center; }
+  .col-headers-row span:first-child { text-align: left; }
+
+  #highlight-mode { accent-color: #1a73e8; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <label><input type="checkbox" id="highlight-mode" checked> Подсветка при наведении</label>
+  <button class="secondary" onclick="openAddDay()">+ Добавить день</button>
+  <button class="secondary" onclick="exportHTML()">Экспорт HTML</button>
+</div>
+
+<div id="report-container"></div>
+<button class="add-day-btn" onclick="openAddDay()">+ Добавить новый день</button>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3 id="modal-title">Добавить день</h3>
+    <label>Дата</label>
+    <input type="date" id="m-date">
+    <label>Период</label>
+    <select id="m-period">
+      <option value="день + ночь">день + ночь</option>
+      <option value="день">день</option>
+      <option value="ночь">ночь</option>
+    </select>
+    <label>Провайдеры (через запятую, например: Pragmatic Play — 3, NetEnt — 1)</label>
+    <input type="text" id="m-providers" placeholder="Pragmatic Play — 3, NetEnt — 2">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <strong style="font-size:13px;">Проекты</strong>
+      <button class="secondary" style="padding:3px 10px;font-size:12px" onclick="addProjectRow()">+ Строка</button>
+    </div>
+    <div class="col-headers-row">
+      <span>Проект</span><span>Чат</span><span>Слоты</span><span>Сайт</span>
+      <span>Вывод</span><span>Депозит</span><span>Провайд.</span><span>Другое</span>
+    </div>
+    <div id="project-rows"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Отмена</button>
+      <button class="btn-save" onclick="saveDay()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const COLS = ['Чат','Слоты','Сайт','Вывод','Депозит','Провайдеры','Другое'];
+let days = [];
+let editIdx = -1;
+let activeCol = -1;
+
+const SAMPLE = [
+  {
+    date: '20.03.2026', period: 'день + ночь',
+    providers: 'Pragmatic Play — 3, Mascot Gaming — 3, Все провайдеры — 2, BGaming — 1, NetEnt — 1',
+    projects: [
+      {name:'KENT',    vals:[1,2,1,0,0,0,2]},
+      {name:'R7',      vals:[1,3,0,0,0,0,0]},
+      {name:'ARKADA',  vals:[0,3,0,0,0,0,1]},
+      {name:'GAMA',    vals:[0,1,2,0,0,0,0]},
+      {name:'KOMETA',  vals:[1,2,0,0,0,0,0]},
+      {name:'CAT',     vals:[1,1,0,0,0,0,0]},
+      {name:'DADDY',   vals:[1,0,0,0,0,0,0]},
+      {name:'MERS',    vals:[0,1,0,0,0,0,0]},
+    ]
+  },
+  {
+    date: '21.03.2026', period: 'день + ночь',
+    providers: 'Все провайдеры — 3, Mascot Gaming — 1, Play\'n GO — 1',
+    projects: [
+      {name:'GAMA',    vals:[0,2,2,0,2,0,0]},
+      {name:'CAT',     vals:[0,2,1,0,1,0,1]},
+      {name:'ARKADA',  vals:[0,0,0,0,0,0,2]},
+      {name:'KENT',    vals:[0,0,0,0,0,0,1]},
+      {name:'DADDY',   vals:[0,0,0,0,0,0,1]},
+    ]
+  },
+  {
+    date: '22.03.2026', period: 'день + ночь',
+    providers: 'Nolimit City — 2, Playson — 1, Pragmatic Play — 1, Gamzix — 1, HacksawGaming — 1',
+    projects: [
+      {name:'CAT',     vals:[0,1,4,0,0,0,1]},
+      {name:'DADDY',   vals:[2,2,1,0,0,0,0]},
+      {name:'GAMA',    vals:[0,2,2,0,0,0,0]},
+      {name:'KOMETA',  vals:[0,2,1,0,0,0,0]},
+      {name:'R7',      vals:[1,1,1,0,0,0,0]},
+      {name:'ARKADA',  vals:[0,0,1,0,0,0,0]},
+      {name:'KENT',    vals:[0,0,0,0,0,0,1]},
+    ]
+  }
+];
+
+function render() {
+  const c = document.getElementById('report-container');
+  c.innerHTML = '';
+  days.forEach((day, di) => {
+    const totals = day.projects.reduce((acc, p) => p.vals.map((v,i)=>acc[i]+v), new Array(7).fill(0));
+    const total = totals.reduce((a,b)=>a+b, 0);
+
+    const block = document.createElement('div');
+    block.className = 'day-block';
+
+    const dayNum = day.date ? day.date.split('.')[0] : '';
+
+    block.innerHTML = `
+      <div class="day-header">
+        <div class="date-icon">${dayNum}</div>
+        <span>${day.date} (${day.period})</span>
+        <button onclick="editDay(${di})" style="margin-left:auto;padding:2px 10px;font-size:11px;border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer;color:#555">Редактировать</button>
+        <button onclick="deleteDay(${di})" style="padding:2px 10px;font-size:11px;border:1px solid #f99;border-radius:4px;background:#fff;cursor:pointer;color:#c00">Удалить</button>
+      </div>
+      <table id="tbl-${di}">
+        <thead>
+          <tr>
+            <th>Проект</th>
+            ${COLS.map((c,ci)=>`<th data-di="${di}" data-ci="${ci}" style="cursor:default">${c}</th>`).join('')}
+            <th>Всего</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${day.projects.map((p,pi)=>`
+            <tr data-di="${di}" data-pi="${pi}">
+              <td>${p.name}</td>
+              ${p.vals.map((v,ci)=>`<td data-di="${di}" data-ci="${ci}" class="${v===0?'zero':'nonzero'}">${v}</td>`).join('')}
+              <td class="nonzero">${p.vals.reduce((a,b)=>a+b,0)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+        <tfoot>
+          <tr class="total-row" data-di="${di}" data-pi="total">
+            <td>Всего</td>
+            ${totals.map((v,ci)=>`<td data-di="${di}" data-ci="${ci}">${v}</td>`).join('')}
+            <td>${total}</td>
+          </tr>
+        </tfoot>
+      </table>
+      ${day.providers ? `<div class="providers"><strong>Провайдеры (${countProviders(day.providers)}):</strong><br>${formatProviders(day.providers)}</div>` : ''}
+    `;
+    c.appendChild(block);
+  });
+  attachHover();
+}
+
+function countProviders(str) {
+  if(!str) return 0;
+  return str.split(',').map(s=>s.trim()).filter(Boolean).reduce((acc,p)=>{
+    const m = p.match(/—\s*(\d+)/);
+    return acc + (m ? parseInt(m[1]) : 1);
+  }, 0);
+}
+
+function formatProviders(str) {
+  if(!str) return '';
+  return str.split(',').map(s=>`<span>${s.trim()}</span>`).join('');
+}
+
+function attachHover() {
+  const enabled = () => document.getElementById('highlight-mode').checked;
+
+  document.querySelectorAll('td[data-di]').forEach(cell => {
+    cell.addEventListener('mouseenter', function() {
+      if(!enabled()) return;
+      const di = this.dataset.di;
+      const ci = this.dataset.ci;
+      clearHighlights();
+      if(ci !== undefined) {
+        document.querySelectorAll(`td[data-di="${di}"][data-ci="${ci}"]`).forEach(c=>c.classList.add('col-highlight'));
+        document.querySelectorAll(`th[data-di="${di}"][data-ci="${ci}"]`).forEach(c=>c.classList.add('col-highlight'));
+      }
+      const row = this.closest('tr');
+      if(row) row.classList.add('row-highlight');
+      this.classList.add('cell-highlight');
+    });
+    cell.addEventListener('mouseleave', clearHighlights);
+  });
+}
+
+function clearHighlights() {
+  document.querySelectorAll('.col-highlight').forEach(c=>c.classList.remove('col-highlight'));
+  document.querySelectorAll('.row-highlight').forEach(r=>r.classList.remove('row-highlight'));
+  document.querySelectorAll('.cell-highlight').forEach(c=>c.classList.remove('cell-highlight'));
+}
+
+function openAddDay() {
+  editIdx = -1;
+  document.getElementById('modal-title').textContent = 'Добавить день';
+  document.getElementById('m-date').value = '';
+  document.getElementById('m-period').value = 'день + ночь';
+  document.getElementById('m-providers').value = '';
+  document.getElementById('project-rows').innerHTML = '';
+  ['KENT','R7','ARKADA','GAMA','KOMETA','CAT','DADDY','MERS'].forEach(n=>addProjectRow(n));
+  document.getElementById('modal').classList.add('open');
+}
+
+function editDay(di) {
+  editIdx = di;
+  const d = days[di];
+  document.getElementById('modal-title').textContent = 'Редактировать день';
+  const parts = d.date.split('.');
+  document.getElementById('m-date').value = parts.length===3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : d.date;
+  document.getElementById('m-period').value = d.period;
+  document.getElementById('m-providers').value = d.providers || '';
+  document.getElementById('project-rows').innerHTML = '';
+  d.projects.forEach(p=>addProjectRow(p.name, p.vals));
+  document.getElementById('modal').classList.add('open');
+}
+
+function addProjectRow(name='', vals=[0,0,0,0,0,0,0]) {
+  const container = document.getElementById('project-rows');
+  const div = document.createElement('div');
+  div.className = 'modal-row';
+  div.innerHTML = `
+    <input type="text" value="${name}" placeholder="Проект">
+    ${vals.map(v=>`<input type="number" value="${v}" min="0" style="text-align:center">`).join('')}
+    <button class="rm" onclick="this.parentElement.remove()">×</button>
+  `;
+  container.appendChild(div);
+}
+
+function saveDay() {
+  const dateRaw = document.getElementById('m-date').value;
+  if(!dateRaw) { alert('Укажите дату'); return; }
+  const dp = dateRaw.split('-');
+  const dateStr = `${dp[2]}.${dp[1]}.${dp[0]}`;
+  const period = document.getElementById('m-period').value;
+  const providers = document.getElementById('m-providers').value.trim();
+
+  const rows = document.getElementById('project-rows').querySelectorAll('.modal-row');
+  const projects = [];
+  rows.forEach(row => {
+    const inputs = row.querySelectorAll('input');
+    const name = inputs[0].value.trim();
+    if(!name) return;
+    const vals = Array.from(inputs).slice(1).map(i=>parseInt(i.value)||0);
+    projects.push({name, vals});
+  });
+
+  const day = {date: dateStr, period, providers, projects};
+
+  if(editIdx >= 0) {
+    days[editIdx] = day;
+  } else {
+    days.push(day);
+  }
+  closeModal();
+  render();
+}
+
+function deleteDay(di) {
+  if(confirm('Удалить этот день?')) {
+    days.splice(di, 1);
+    render();
+  }
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+}
+
+function exportHTML() {
+  const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Отчёт</title></head><body>' + document.body.innerHTML + '</body></html>';
+  const blob = new Blob([html], {type:'text/html'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'report.html';
+  a.click();
+}
+
+document.getElementById('modal').addEventListener('click', function(e) {
+  if(e.target === this) closeModal();
+});
+
+days = SAMPLE;
+render();
+</script>
+</body>
+</html>

@@ -362,9 +362,10 @@ function doExport() {
     if (s.innerHTML.includes("const KEY")) {
       s.innerHTML = `
 const COLS = ${JSON.stringify(COLS)};
-const KEY = '${KEY}';
 let days = ${JSON.stringify(days)};
+
 render();
+attachHL();
 `;
     }
   });

@@ -355,16 +355,21 @@ function delDay(di) { if (confirm('Удалить этот день?')) { days.s
 function clearAll() { if (confirm('Удалить все данные?')) { days=[]; save(); render(); } }
 
 function doExport() {
-  // Build HTML with data baked in as static variable
-  const fullHtml = document.documentElement.outerHTML;
-  // Replace the load() call + days=[] init with static data
-  const staticData = '\ndays = ' + JSON.stringify(days) + ';\nrender();\n';
-  // Find script end marker and inject before it
-  const injected = fullHtml.replace(
-    /\/\/ ── Init.*?<\/script>/s,
-    '// ── Init ──\n' + staticData + '</script>'
-  );
-  const blob = new Blob([injected], {type:'text/html;charset=utf-8'});
+  const clone = document.documentElement.cloneNode(true);
+
+  const scripts = clone.querySelectorAll("script");
+  scripts.forEach(s => {
+    if (s.innerHTML.includes("const KEY")) {
+      s.innerHTML = `
+const COLS = ${JSON.stringify(COLS)};
+const KEY = '${KEY}';
+let days = ${JSON.stringify(days)};
+render();
+`;
+    }
+  });
+
+  const blob = new Blob([clone.outerHTML], { type: 'text/html;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'report_' + new Date().toISOString().slice(0,10) + '.html';

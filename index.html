@@ -358,11 +358,22 @@ function doExport() {
   let html = document.documentElement.outerHTML;
 
   const dataScript = `
-  <script>
-    localStorage.setItem('${KEY}', JSON.stringify(${JSON.stringify(days)}));
-    location.reload();
-  </script>
-  `;
+<script>
+(function(){
+  const KEY = '${KEY}';
+  const data = ${JSON.stringify(days)};
+  localStorage.setItem(KEY, JSON.stringify(data));
+
+  // після завантаження — перерендер
+  window.addEventListener('DOMContentLoaded', () => {
+    try {
+      if (typeof load === 'function') load();
+      if (typeof render === 'function') render();
+    } catch(e){}
+  });
+})();
+</script>
+`;
 
   html = html.replace('</body>', dataScript + '\n</body>');
 
@@ -372,6 +383,7 @@ function doExport() {
   a.download = 'report_' + new Date().toISOString().slice(0,10) + '.html';
   a.click();
 }
+
 // ── Init ──
 load();
 render();

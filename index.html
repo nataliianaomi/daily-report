@@ -355,22 +355,17 @@ function delDay(di) { if (confirm('Удалить этот день?')) { days.s
 function clearAll() { if (confirm('Удалить все данные?')) { days=[]; save(); render(); } }
 
 function doExport() {
-  const clone = document.documentElement.cloneNode(true);
+  let html = document.documentElement.outerHTML;
 
-  const scripts = clone.querySelectorAll("script");
-  scripts.forEach(s => {
-    if (s.innerHTML.includes("const KEY")) {
-      s.innerHTML = `
-const COLS = ${JSON.stringify(COLS)};
-let days = ${JSON.stringify(days)};
+  const dataScript = `
+  <script>
+    localStorage.setItem('${KEY}', JSON.stringify(${JSON.stringify(days)}));
+  </script>
+  `;
 
-render();
-attachHL();
-`;
-    }
-  });
+  html = html.replace('</body>', dataScript + '\n</body>');
 
-  const blob = new Blob([clone.outerHTML], { type: 'text/html;charset=utf-8' });
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'report_' + new Date().toISOString().slice(0,10) + '.html';

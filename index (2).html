@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ежедневный отчёт по тегам</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; font-size: 13px; color: #222; background: #fff; padding: 20px; }
+
+.toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+.toolbar label { font-size: 12px; color: #555; display: flex; align-items: center; gap: 5px; cursor: pointer; }
+.btn { padding: 5px 14px; border: 1px solid #1a73e8; border-radius: 4px; background: #1a73e8; color: #fff; cursor: pointer; font-size: 13px; }
+.btn:hover { background: #1557b0; }
+.btn-sec { background: #fff; color: #1a73e8; border: 1px solid #1a73e8; padding: 5px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-sec:hover { background: #e8f0fe; }
+
+.day-block { margin-bottom: 32px; }
+.day-header { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: #1a1a1a; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #e0e0e0; }
+.date-icon { width: 22px; height: 22px; background: #1a73e8; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+
+table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+th { background: #f8f8f8; font-weight: 600; font-size: 12px; padding: 7px 10px; text-align: center; border-bottom: 2px solid #ddd; color: #444; white-space: nowrap; }
+th:first-child { text-align: left; }
+td { padding: 6px 10px; border-bottom: 1px solid #eee; text-align: center; transition: background 0.08s; }
+td:first-child { text-align: left; font-weight: 500; }
+tr.total-row td { font-weight: 700; background: #f0f4ff; border-top: 2px solid #c5cfe8; }
+.col-highlight { background: #fff3cd !important; }
+.row-highlight td { background: #e8f4fd !important; }
+tr.total-row.row-highlight td { background: #d0e8f8 !important; }
+.cell-highlight { background: #ffd700 !important; color: #000 !important; font-weight: 700 !important; }
+.zero { color: #bbb; }
+.nonzero { color: #1a1a1a; font-weight: 500; }
+
+.providers { font-size: 12px; color: #444; padding: 8px 12px; background: #f9f9f9; border-left: 3px solid #1a73e8; border-radius: 0 4px 4px 0; }
+.providers strong { color: #1a73e8; }
+.providers span { display: inline-block; margin-right: 12px; }
+
+.add-day-btn { display: block; width: 100%; padding: 10px; border: 2px dashed #ccc; border-radius: 6px; background: none; cursor: pointer; font-size: 13px; color: #888; margin-top: 8px; }
+.add-day-btn:hover { border-color: #1a73e8; color: #1a73e8; background: #f0f7ff; }
+
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 100; align-items: flex-start; justify-content: center; padding-top: 30px; overflow-y: auto; }
+.modal-overlay.open { display: flex; }
+.modal { background: #fff; border-radius: 8px; padding: 24px; width: 580px; max-width: 96vw; margin-bottom: 30px; box-shadow: 0 4px 24px rgba(0,0,0,0.2); }
+.modal h3 { margin-bottom: 14px; font-size: 15px; }
+
+.tabs { display: flex; border: 1px solid #ddd; border-radius: 6px; overflow: hidden; margin-bottom: 16px; }
+.tab-btn { flex: 1; padding: 8px; border: none; cursor: pointer; font-size: 13px; background: #f5f5f5; color: #555; }
+.tab-btn.active { background: #1a73e8; color: #fff; font-weight: 600; }
+
+textarea { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; font-family: monospace; margin-bottom: 10px; resize: vertical; }
+.modal input, .modal select { width: 100%; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 10px; font-size: 13px; }
+.modal label { font-size: 12px; color: #555; display: block; margin-bottom: 3px; }
+
+.preview-box { background: #f0f7ff; border: 1px solid #c0d8f8; border-radius: 6px; padding: 10px 12px; font-size: 12px; margin-bottom: 12px; line-height: 1.9; }
+.preview-box b { color: #1a73e8; }
+
+.col-headers-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 24px; gap: 5px; margin-bottom: 4px; }
+.col-headers-row span { font-size: 11px; color: #888; text-align: center; }
+.col-headers-row span:first-child { text-align: left; }
+.modal-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 24px; gap: 5px; margin-bottom: 5px; align-items: center; }
+.modal-row input { margin-bottom: 0; padding: 5px 4px; text-align: center; }
+.modal-row input:first-child { text-align: left; padding: 5px 8px; }
+.rm { width: 24px; height: 24px; border: none; background: #fee; color: #c00; border-radius: 4px; cursor: pointer; font-size: 15px; }
+
+.modal-actions { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
+.modal-actions button { padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-save { background: #1a73e8; color: #fff; border: none; }
+.btn-cancel { background: #fff; color: #555; border: 1px solid #ccc; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <label><input type="checkbox" id="highlight-mode" checked> Подсветка при наведении</label>
+  <button class="btn-sec" onclick="openModal(-1)">+ Добавить день</button>
+  <button class="btn-sec" onclick="exportHTML()">Экспорт HTML</button>
+</div>
+
+<div id="report-container"></div>
+<button class="add-day-btn" onclick="openModal(-1)">+ Добавить новый день</button>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3 id="modal-title">Добавить день</h3>
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-paste" onclick="switchTab('paste')">📋 Вставить текст смены</button>
+      <button class="tab-btn" id="tab-manual" onclick="switchTab('manual')">✏️ Ввести вручную</button>
+    </div>
+
+    <div id="pane-paste">
+      <label style="font-weight:600;margin-bottom:6px;color:#1a73e8;">Вставьте текст из отчёта смены:</label>
+      <textarea id="m-paste" rows="16" placeholder="📅 22.03.2026
+🕒 Дневная смена (9:00 – 21:00)
+Не работает сайт:
+GAMA — 2
+CAT — 1
+ARKADA — 1
+Другое:
+CAT — 1
+KENT — 1
+Не работают слоты:
+DADDY — 2
+KOMETA — 2
+Не работает чат:
+DADDY — 2
+R7 — 1
+Трудности с провайдерами:
+Playson — 1
+Pragmatic Play — 1
+Nolimit City — 1"></textarea>
+      <div id="parse-preview" style="display:none;" class="preview-box"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-sec" style="flex:1;padding:8px;" onclick="doPreview()">👁 Предпросмотр</button>
+        <button class="btn" style="flex:2;padding:8px;font-size:14px;" onclick="doParseSave()">✅ Добавить в отчёт</button>
+      </div>
+    </div>
+
+    <div id="pane-manual" style="display:none;">
+      <label>Дата</label>
+      <input type="date" id="m-date">
+      <label>Период</label>
+      <select id="m-period">
+        <option value="день + ночь">день + ночь</option>
+        <option value="Дневная смена">Дневная смена</option>
+        <option value="Ночная смена">Ночная смена</option>
+        <option value="день">день</option>
+        <option value="ночь">ночь</option>
+      </select>
+      <label>Провайдеры (через запятую: Pragmatic Play — 3, NetEnt — 1)</label>
+      <input type="text" id="m-providers" placeholder="Pragmatic Play — 3, NetEnt — 1">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <strong style="font-size:13px;">Проекты</strong>
+        <button class="btn-sec" style="padding:3px 10px;font-size:12px" onclick="addProjectRow()">+ Строка</button>
+      </div>
+      <div class="col-headers-row">
+        <span>Проект</span><span>Чат</span><span>Слоты</span><span>Сайт</span>
+        <span>Вывод</span><span>Депозит</span><span>Провайд.</span><span>Другое</span><span></span>
+      </div>
+      <div id="project-rows"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal()">Отмена</button>
+        <button class="btn-save" onclick="saveManual()">Сохранить</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const COLS = ['Чат','Слоты','Сайт','Вывод','Депозит','Провайдеры','Другое'];
+
+const CAT_MAP = [
+  [/не работает чат|проблем.{0,10}чат/i,              0],
+  [/не работают слоты|проблем.{0,10}слот/i,           1],
+  [/не работает сайт|проблем.{0,10}сайт/i,            2],
+  [/не может.{0,10}вывод|проблем.{0,10}вывод/i,       3],
+  [/не может.{0,10}депозит|проблем.{0,10}депозит/i,   4],
+  [/трудности.{0,10}провайдер|провайдер/i,            5],
+  [/другое/i,                                          6],
+];
+
+let days = [];
+let editIdx = -1;
+
+function parseText(raw) {
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  let date = '', period = '';
+  const projects = {};
+  const providers = {};
+  let colIdx = -1;
+  let isProviders = false;
+
+  for (const line of lines) {
+    const clean = line.replace(/^[📅🕒\u{1F4C5}\u{1F552}]/u, '').trim();
+    if (!clean) continue;
+
+    // Date: dd.mm.yyyy
+    if (/^\d{2}\.\d{2}\.\d{4}$/.test(clean)) { date = clean; continue; }
+
+    // Shift/period line
+    if (!clean.includes('—') && !clean.includes(':') &&
+        /смена|дневн|ноч|9:00|21:00|день|ночь/i.test(clean) && clean.length < 80) {
+      period = clean.replace(/\s*\(.*?\)\s*/g,'').trim();
+      continue;
+    }
+
+    // Category header (ends with colon)
+    if (clean.endsWith(':')) {
+      const hdr = clean.slice(0,-1).toLowerCase();
+      let found = false;
+      for (const [rx, idx] of CAT_MAP) {
+        if (rx.test(hdr)) { colIdx = idx; isProviders = (idx===5); found = true; break; }
+      }
+      if (found) continue;
+    }
+
+    // Entry: NAME — N
+    const m = clean.match(/^(.+?)\s*[—–-]\s*(\d+)$/);
+    if (m) {
+      const name = m[1].trim();
+      const count = parseInt(m[2]);
+      if (isProviders) {
+        providers[name] = (providers[name]||0) + count;
+      } else if (colIdx >= 0) {
+        if (!projects[name]) projects[name] = [0,0,0,0,0,0,0];
+        projects[name][colIdx] += count;
+      }
+    }
+  }
+
+  const provStr = Object.entries(providers).map(([n,c])=>`${n} — ${c}`).join(', ');
+  const projArr = Object.entries(projects)
+    .map(([name,vals])=>({name,vals}))
+    .sort((a,b)=>b.vals.reduce((x,y)=>x+y,0)-a.vals.reduce((x,y)=>x+y,0));
+
+  return {date, period, providers: provStr, projects: projArr};
+}
+
+function doPreview() {
+  const text = document.getElementById('m-paste').value;
+  if (!text.trim()) return;
+  const d = parseText(text);
+  let html = `<b>📅 Дата:</b> ${d.date||'<i style="color:#999">не найдена</i>'}<br>`;
+  html += `<b>🕒 Период:</b> ${d.period||'<i style="color:#999">не найден</i>'}<br>`;
+  if (d.providers) {
+    const cnt = d.providers.split(',').reduce((a,p)=>{const m=p.match(/—\s*(\d+)/);return a+(m?+m[1]:1);},0);
+    html += `<b>Провайдеры (${cnt}):</b> ${d.providers}<br>`;
+  }
+  if (d.projects.length) {
+    html += `<b>Проекты:</b><br>`;
+    d.projects.forEach(p=>{
+      const parts = p.vals.map((v,i)=>v>0?`${COLS[i]}: ${v}`:'').filter(Boolean);
+      html += `&nbsp;&nbsp;• <b>${p.name}</b> — ${parts.join(', ')}<br>`;
+    });
+  } else {
+    html += `<i style="color:#e00">⚠ Проекты не найдены. Проверьте формат текста.</i>`;
+  }
+  const box = document.getElementById('parse-preview');
+  box.innerHTML = html;
+  box.style.display = 'block';
+}
+
+function doParseSave() {
+  const text = document.getElementById('m-paste').value.trim();
+  if (!text) { alert('Вставьте текст смены'); return; }
+  const d = parseText(text);
+  if (!d.date) { alert('Не найдена дата.\nФормат: 22.03.2026'); return; }
+  if (!d.projects.length) { alert('Не найдено ни одного проекта.\nПроверьте формат: НАЗВАНИЕ — 2'); return; }
+  if (editIdx >= 0) days[editIdx] = d; else days.push(d);
+  closeModal();
+  render();
+}
+
+function switchTab(tab) {
+  document.getElementById('pane-paste').style.display  = tab==='paste'  ? '' : 'none';
+  document.getElementById('pane-manual').style.display = tab==='manual' ? '' : 'none';
+  document.getElementById('tab-paste').className  = 'tab-btn'+(tab==='paste'  ? ' active':'');
+  document.getElementById('tab-manual').className = 'tab-btn'+(tab==='manual' ? ' active':'');
+}
+
+function openModal(di) {
+  editIdx = di;
+  document.getElementById('modal-title').textContent = di<0 ? 'Добавить день' : 'Редактировать день';
+  document.getElementById('parse-preview').style.display = 'none';
+  document.getElementById('m-paste').value = '';
+  if (di >= 0) {
+    switchTab('manual');
+    const d = days[di];
+    const p = d.date.split('.');
+    document.getElementById('m-date').value = p.length===3 ? `${p[2]}-${p[1]}-${p[0]}` : '';
+    const sel = document.getElementById('m-period');
+    const opts = Array.from(sel.options).map(o=>o.value);
+    sel.value = opts.find(o=>d.period&&d.period.includes(o)) || opts[0];
+    document.getElementById('m-providers').value = d.providers||'';
+    document.getElementById('project-rows').innerHTML = '';
+    d.projects.forEach(p=>addProjectRow(p.name, p.vals));
+  } else {
+    switchTab('paste');
+  }
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+function addProjectRow(name='', vals=[0,0,0,0,0,0,0]) {
+  const div = document.createElement('div');
+  div.className = 'modal-row';
+  div.innerHTML = `<input type="text" value="${name}" placeholder="Проект">
+    ${vals.map(v=>`<input type="number" value="${v}" min="0">`).join('')}
+    <button class="rm" onclick="this.parentElement.remove()">×</button>`;
+  document.getElementById('project-rows').appendChild(div);
+}
+
+function saveManual() {
+  const dateRaw = document.getElementById('m-date').value;
+  if (!dateRaw) { alert('Укажите дату'); return; }
+  const dp = dateRaw.split('-');
+  const date = `${dp[2]}.${dp[1]}.${dp[0]}`;
+  const period = document.getElementById('m-period').value;
+  const providers = document.getElementById('m-providers').value.trim();
+  const projects = [];
+  document.getElementById('project-rows').querySelectorAll('.modal-row').forEach(row=>{
+    const inp = row.querySelectorAll('input');
+    const name = inp[0].value.trim();
+    if (!name) return;
+    projects.push({name, vals: Array.from(inp).slice(1).map(i=>parseInt(i.value)||0)});
+  });
+  const day = {date,period,providers,projects};
+  if (editIdx>=0) days[editIdx]=day; else days.push(day);
+  closeModal(); persist(); render();
+}
+
+function render() {
+  const c = document.getElementById('report-container');
+  c.innerHTML = '';
+  days.forEach((day,di)=>{
+    const tots = day.projects.reduce((acc,p)=>p.vals.map((v,i)=>acc[i]+v), new Array(7).fill(0));
+    const tot  = tots.reduce((a,b)=>a+b,0);
+    const num  = (day.date||'').split('.')[0];
+    const bl   = document.createElement('div');
+    bl.className = 'day-block';
+    bl.innerHTML = `
+      <div class="day-header">
+        <div class="date-icon">${num}</div>
+        <span>${day.date} (${day.period})</span>
+        <button onclick="openModal(${di})" style="margin-left:auto;padding:2px 10px;font-size:11px;border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer;color:#555">Редактировать</button>
+        <button onclick="deleteDay(${di})" style="padding:2px 10px;font-size:11px;border:1px solid #f99;border-radius:4px;background:#fff;cursor:pointer;color:#c00">Удалить</button>
+      </div>
+      <table>
+        <thead><tr>
+          <th>Проект</th>
+          ${COLS.map((col,ci)=>`<th data-di="${di}" data-ci="${ci}">${col}</th>`).join('')}
+          <th>Всего</th>
+        </tr></thead>
+        <tbody>
+          ${day.projects.map((p,pi)=>`
+            <tr data-di="${di}" data-pi="${pi}">
+              <td>${p.name}</td>
+              ${p.vals.map((v,ci)=>`<td data-di="${di}" data-ci="${ci}" class="${v?'nonzero':'zero'}">${v}</td>`).join('')}
+              <td class="${p.vals.reduce((a,b)=>a+b,0)?'nonzero':'zero'}">${p.vals.reduce((a,b)=>a+b,0)}</td>
+            </tr>`).join('')}
+        </tbody>
+        <tfoot>
+          <tr class="total-row" data-di="${di}">
+            <td>Всего</td>
+            ${tots.map((v,ci)=>`<td data-di="${di}" data-ci="${ci}">${v}</td>`).join('')}
+            <td>${tot}</td>
+          </tr>
+        </tfoot>
+      </table>
+      ${day.providers ? `<div class="providers"><strong>Провайдеры (${cntProv(day.providers)}):</strong><br>${fmtProv(day.providers)}</div>` : ''}`;
+    c.appendChild(bl);
+  });
+  attachHover();
+}
+
+function cntProv(s) {
+  return s.split(',').reduce((a,p)=>{const m=p.match(/—\s*(\d+)/);return a+(m?+m[1]:1);},0);
+}
+function fmtProv(s) {
+  return s.split(',').map(p=>`<span>${p.trim()}</span>`).join('');
+}
+
+function attachHover() {
+  const on = ()=>document.getElementById('highlight-mode').checked;
+  document.querySelectorAll('td[data-di],th[data-di]').forEach(cell=>{
+    cell.addEventListener('mouseenter',function(){
+      if(!on()) return;
+      clearHL();
+      const {di,ci} = this.dataset;
+      if (ci!=null) document.querySelectorAll(`[data-di="${di}"][data-ci="${ci}"]`).forEach(c=>c.classList.add('col-highlight'));
+      this.closest('tr')?.classList.add('row-highlight');
+      this.classList.add('cell-highlight');
+    });
+    cell.addEventListener('mouseleave', clearHL);
+  });
+}
+
+function clearHL() {
+  document.querySelectorAll('.col-highlight').forEach(c=>c.classList.remove('col-highlight'));
+  document.querySelectorAll('.row-highlight').forEach(r=>r.classList.remove('row-highlight'));
+  document.querySelectorAll('.cell-highlight').forEach(c=>c.classList.remove('cell-highlight'));
+}
+
+function deleteDay(di) {
+  if (confirm('Удалить этот день?')) { days.splice(di,1); persist(); render(); }
+}
+
+function exportHTML() {
+  const blob = new Blob([document.documentElement.outerHTML],{type:'text/html'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'report.html';
+  a.click();
+}
+
+function persist() {
+  try { localStorage.setItem('shift_report_v1', JSON.stringify(days)); } catch(e) {}
+  const ind = document.getElementById('save-ind');
+  if (ind) { ind.textContent = '✓ Сохранено'; setTimeout(()=>{ ind.textContent=''; },2000); }
+}
+
+function clearAll() {
+  if (confirm('Удалить все данные? Это действие нельзя отменить.')) {
+    days = []; persist(); render();
+  }
+}
+
+document.getElementById('modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
+
+document.querySelector('.toolbar').insertAdjacentHTML('beforeend',
+  `<button class="btn-sec" onclick="clearAll()" style="color:#c00;border-color:#c00;">🗑 Очистить всё</button>
+   <span id="save-ind" style="font-size:11px;color:green;font-weight:600;margin-left:4px;"></span>`
+);
+
+try {
+  const raw = localStorage.getItem('shift_report_v1');
+  if (raw) days = JSON.parse(raw);
+} catch(e) {}
+
+render();
+</script>
+</body>
+</html>
